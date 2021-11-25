@@ -58,17 +58,47 @@ else
     exit 1
 fi
 
+#check if inventory file exists
+invfile=/var/www/html/inventory.html
+invheader="Log_Type\t\tDate_Created\t\tType\t\tSize"
+if test -f "$invfile"; then
+    echo "$invfile exists..."
+else
+    echo "Creating file $invfile ..."
+    touch $invfile
+    echo -e $invheader >> $invfile
+fi
+
 DIR="/var/log/apache2/"
 if [[ -d "$DIR" ]]; then
     echo "Archiving log files in ${DIR}..."
     timestamp=$(date '+%d%m%Y-%H%M%S')
     filename=$fileprefix"-httpd-logs-"$timestamp
+    #creates tar file for the log files
     find $DIR -name "*.log" | tar -zcvf /tmp/$filename.tar  -P  -T -
+    #compresses tar file
     gzip /tmp/$filename.tar
+    #copies compressed tar file to s3 bucket
     aws s3 cp /tmp/$filename.tar.gz s3://${s3_bucket}/${filename}.tar.gz
+    fsize=$(ls -sh /tmp | grep "$filename.tar.gz" | awk '{print $1}')
+    #creates entry into inventory.html
+    echo -e "httpd-logs\t\t$timestamp\t\ttar\t\t$fsize" >> $invfile
+    #removes compressed tar file from /tmp folder
+    rm -rf /tmp/$filename.tar.gz
 else
     echo "Directory path ${DIR} not found..."
     exit 1
+fi
+
+#check if cron job exists. Create if not already present
+cronfile=/etc/cron.d/automation
+fileloc=$(pwd)
+if test -f "$cronfile"; then
+    echo "$cronfile exists..."
+else
+    echo "Creating cronjob ..."
+    echo "0 0 * * * root $fileloc/automation.sh" > $cronfile
+    chmod 600 $cronfile
 fi
 
 exit 0

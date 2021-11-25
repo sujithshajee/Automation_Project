@@ -9,6 +9,8 @@ Ensures that HTTP Apache server is installed
 Ensures that HTTP Apache server is running
 Ensures that HTTP Apache service is enabled
 Archiving HTTP Server logs from /var/log/apache2/ to S3
+Sets up cronjob to archive log files on daily at midnight
+Creates and records historical data of archival at location /var/www/html/inventory.html
 ```
 
 ## Prerequisites
